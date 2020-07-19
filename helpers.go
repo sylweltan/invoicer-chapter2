@@ -26,3 +26,4 @@ func httpError(w http.ResponseWriter, r *http.Request, errorCode int, errorMessa
 	http.Error(w, fmt.Sprintf(errorMessage, args...), errorCode)
 	return
 }
+
