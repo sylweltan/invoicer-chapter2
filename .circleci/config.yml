@@ -46,3 +46,26 @@ jobs:
              sudo tee $CIRCLE_ARTIFACTS/docker-image-shasum256.txt;
            docker push ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME};
          fi
+
+   - run:
+     name: Buld application container
+     command: |
+       go install --ldflags '-extflags "-static"' \
+       github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPO_NAME};
+       [ ! -e bin ] && mkdir bin;
+       cp "${GOPATH}/bin/${CIRCLE_PROJECT_REPONAME}" bin/invoicer;
+       docker build -t ${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME} .;
+
+   - run:
+     name: ZAP baseline scan of application
+     # Only fail on error code 1, which indicates at least one FAIL was found.
+     # error codes 2 & 3 indicate WARN or other, and should not break the run
+     command: |
+       {
+       docker pull owasp/zap2docker-weekly && \
+       docker run -t owasp/zap2docker-weekly zap-baseline.py \
+         -u https://raw.githubusercontent.com/${DOCKER_REPO}/${CIRCLE_PROJECT_REPONAME}/master/zap-baseline.conf \
+         -t http://172.17.0.2:8080/ || \
+       if [ $? -ne 1 ]; then exit 0; else exit 1; fi;
+       }
+
